@@ -17,6 +17,7 @@ pub enum Error {
     BadUpgrade,
     BadSecretKey,
     UnexpectedExtensions,
+    BadCompression,
 
     InvalidResponseCode(Option<u16>),
     FrameTooLarge(usize),

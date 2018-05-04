@@ -1,5 +1,8 @@
 use discord::gateway::websocket::{Error, Frame, Message, OpCode};
 
+use std::str;
+
+use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
 use rand::{thread_rng, Rng};
 use tokio_io::codec::{Decoder, Encoder};
@@ -146,7 +149,17 @@ impl Decoder for ClientDecoder {
 
                 let frame = Frame::decode(src).unmask();
                 match frame.flags.opcode() {
-                    OpCode::Close => Some(Message::Close(frame.payload)),
+                    OpCode::Close => {
+                        let mut status = 0;
+                        let mut reason = None;
+                        if frame.payload.len() >= 2 {
+                            status = BigEndian::read_u16(&frame.payload[..2]);
+                        }
+                        if frame.payload.len() > 2 {
+                            reason = str::from_utf8(&frame.payload[2..]).map(|s| s.into()).ok();
+                        }
+                        Some(Message::Close { status, reason })
+                    }
                     OpCode::Ping => Some(Message::Ping(frame.payload)),
                     OpCode::Pong => Some(Message::Pong(frame.payload)),
                     _ => unreachable!(),

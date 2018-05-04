@@ -15,6 +15,7 @@ extern crate direct3d11;
 extern crate directwrite;
 extern crate dxgi;
 extern crate erased_serde;
+extern crate flate2;
 extern crate futures_await as futures;
 extern crate http;
 extern crate httparse;
@@ -30,6 +31,8 @@ extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_tls;
 
+use discord::gateway::websocket::Message;
+use discord::gateway::GatewayMessage;
 use error::DResult;
 
 use futures::prelude::*;
@@ -43,12 +46,25 @@ fn naive_test() -> DResult<()> {
     let gateway = await!(discord::api::gateway::get())?;
 
     println!("Connecting to {}...", gateway.url);
-    let uri = format!("{}/?v=6", gateway.url).parse().unwrap();
-    let ws_client = await!(discord::gateway::websocket::connect(uri))?;
+    let client = await!(discord::gateway::connect(&gateway.url))?;
 
     #[async]
-    for packet in ws_client.reader {
-        println!("{:?}", packet);
+    for packet in client.reader {
+        match packet {
+            GatewayMessage::Packet(payload) => {
+                println!("packet: {}", payload);
+            }
+
+            GatewayMessage::OtherFrame(Message::Close { status, reason }) => {
+                let reason = reason.as_ref().map(|s| &s[..]).unwrap_or("");
+                println!("closed: {} {}", status, reason);
+                break;
+            }
+
+            GatewayMessage::OtherFrame(frame) => {
+                println!("other frame: {:?}", frame);
+            }
+        }
     }
 
     Ok(())
