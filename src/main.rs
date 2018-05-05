@@ -67,6 +67,7 @@ fn naive_test() -> DResult<()> {
         }
     }
 
+    discord::api::dispose();
     Ok(())
 }
 
