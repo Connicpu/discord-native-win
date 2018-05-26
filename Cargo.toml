@@ -28,6 +28,9 @@ native-tls = "0.1.5"
 base64 = "0.9.1"
 httparse = "1.2.4"
 sha1 = "0.6.0"
+log = "0.4.1"
+dotenv = "0.10.0"
+env_logger = "0.5.10"
 
 [dependencies.hyper]
 git = "https://github.com/hyperium/hyper"

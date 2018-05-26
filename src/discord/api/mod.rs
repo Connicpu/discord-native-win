@@ -10,6 +10,7 @@ use hyper_tls::HttpsConnector;
 use serde::de;
 use serde_json;
 
+pub mod auth;
 pub mod gateway;
 
 lazy_static! {
@@ -42,7 +43,7 @@ where
     let response = await!(CLIENT.with(|c| c.get(uri)))?;
 
     if !response.status().is_success() {
-        return Err(ApiError::UnknownEndpointError.into());
+        return Err(ApiError::UnknownEndpoint.into());
     }
 
     let body = response.into_body();

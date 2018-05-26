@@ -28,6 +28,7 @@ impl Stream for MessageDeflater {
                     match res {
                         Ok(Status::Ok) | Ok(Status::StreamEnd) => {
                             let text = String::from_utf8(buf).map_err(|_| Error::TextFrameNotUtf8)?;
+                            debug!("gateway packet decompressed");
                             Ok(Async::Ready(Some(GatewayMessage::Packet(text))))
                         }
                         _ => return Err(Error::BadCompression),

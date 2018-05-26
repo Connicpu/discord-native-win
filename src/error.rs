@@ -1,9 +1,11 @@
 use std::io;
+use std::fmt;
 
 use hyper;
 use hyper_tls;
 use serde_json;
 use discord::gateway::websocket;
+use dxgi::Error as DError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -16,9 +18,23 @@ pub enum Error {
     Graphics(i32),
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Api(err) => write!(fmt, "Api error: {:?}", err),
+            Error::Io(err) => write!(fmt, "I/O error: {}", err),
+            Error::Json(err) => write!(fmt, "Json error: {}", err),
+            Error::Hyper(err) => write!(fmt, "Http error: {}", err),
+            Error::Tls(err) => write!(fmt, "Tls error: {}", err),
+            Error::Websocket(err) => write!(fmt, "WebSocket error: {}", err),
+            Error::Graphics(hr) => write!(fmt, "Graphics error: {:x} {}", hr, DError(*hr)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApiError {
-    UnknownEndpointError,
+    UnknownEndpoint,
 }
 
 pub type DResult<T> = Result<T, Error>;

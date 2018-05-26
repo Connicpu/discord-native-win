@@ -39,6 +39,15 @@ impl Encoder for ClientEncoder {
     fn encode(&mut self, item: Message, dst: &mut BytesMut) -> Result<(), Error> {
         let frame = item.to_frame().with_mask(thread_rng().gen());
 
+        if frame.payload.len() > 4096 {
+            error!(
+                "Attempted to send frame larger than 4096 bytes. This would be \
+                 rejected by the gateway and so was squashed.\n    frame data: {:?}",
+                String::from_utf8_lossy(&frame.payload)
+            );
+            return Ok(());
+        }
+
         let size = frame.frame_size();
         dst.reserve(size);
         frame.encode(dst);

@@ -1,10 +1,13 @@
-#![feature(proc_macro, generators)]
-
-#[macro_use]
-extern crate serde_derive;
+#![feature(proc_macro, generators, entry_or_default, proc_macro_non_items)]
 
 #[macro_use]
 extern crate lazy_static;
+
+#[macro_use]
+extern crate log;
+
+#[macro_use]
+extern crate serde_derive;
 
 extern crate base64;
 extern crate byteorder;
@@ -13,7 +16,9 @@ extern crate chrono;
 extern crate direct2d;
 extern crate direct3d11;
 extern crate directwrite;
+extern crate dotenv;
 extern crate dxgi;
+extern crate env_logger;
 extern crate erased_serde;
 extern crate flate2;
 extern crate futures_await as futures;
@@ -31,46 +36,21 @@ extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_tls;
 
-use discord::gateway::websocket::Message;
-use discord::gateway::GatewayMessage;
-use error::DResult;
-
-use futures::prelude::*;
-
 pub mod discord;
 pub mod error;
+pub mod logging;
 pub mod state;
 
-#[async]
-fn naive_test() -> DResult<()> {
-    let gateway = await!(discord::api::gateway::get())?;
-
-    println!("Connecting to {}...", gateway.url);
-    let client = await!(discord::gateway::connect(&gateway.url))?;
-
-    #[async]
-    for packet in client.reader {
-        match packet {
-            GatewayMessage::Packet(payload) => {
-                println!("packet: {}", payload);
-            }
-
-            GatewayMessage::OtherFrame(Message::Close { status, reason }) => {
-                let reason = reason.as_ref().map(|s| &s[..]).unwrap_or("");
-                println!("closed: {} {}", status, reason);
-                break;
-            }
-
-            GatewayMessage::OtherFrame(frame) => {
-                println!("other frame: {:?}", frame);
-            }
-        }
-    }
-
-    discord::api::dispose();
-    Ok(())
-}
+mod demo;
 
 fn main() {
-    tokio::run(naive_test().map_err(|e| eprintln!("Error: {:?}", e)));
+    use logging::FutureLogExt;
+    use discord::gateway::packets::*;
+
+    dotenv::dotenv().ok();
+    logging::init();
+
+    println!("WOO Packet<Identify> IS {} BYTES", std::mem::size_of::<Packet<Identify>>());
+
+    tokio::run(demo::naive_test().log_errors());
 }
