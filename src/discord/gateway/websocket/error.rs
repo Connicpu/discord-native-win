@@ -3,8 +3,6 @@ use discord::gateway::websocket::OpCode;
 use std::fmt;
 use std::io;
 
-use httparse;
-
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),

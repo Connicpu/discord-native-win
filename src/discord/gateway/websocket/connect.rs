@@ -8,6 +8,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::str;
 
 use base64::display::Base64Display;
+use either::Either;
 use futures::prelude::*;
 use http::uri::{Scheme, Uri};
 use httparse::{Response, Status, EMPTY_HEADER};
@@ -17,7 +18,8 @@ use sha1::Sha1;
 use tokio::io::{read_until, write_all, AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio_io::codec::{FramedRead, FramedWrite};
-use tokio_tls::TlsConnectorExt;
+use tokio_io::io::{ReadHalf, WriteHalf};
+use tokio_tls::{TlsConnectorExt, TlsStream};
 
 pub struct ConnectSettings {
     /// The largest frame that will be accepted from the server.
@@ -28,8 +30,25 @@ pub struct ConnectSettings {
 
 #[async]
 pub fn connect_with_settings(uri: Uri, settings: ConnectSettings) -> DResult<Client> {
-    let (mut reader, mut writer) = await!(establish_connection(uri.clone()))?;
+    let connection = await!(establish_connection(uri.clone()))?;
 
+    match connection {
+        Either::Left((r, w)) => await!(do_connect(uri, settings, r, w)),
+        Either::Right((r, w)) => await!(do_connect(uri, settings, r, w)),
+    }
+}
+
+#[async]
+fn do_connect<R, W>(
+    uri: Uri,
+    settings: ConnectSettings,
+    mut reader: BufReader<R>,
+    writer: W,
+) -> DResult<Client>
+where
+    R: AsyncRead + Send + 'static,
+    W: AsyncWrite + Send + 'static,
+{
     let sec_key = thread_rng().gen::<[u8; 16]>();
     let hashed_key = hash_sec_key(&sec_key);
 
@@ -106,7 +125,7 @@ pub fn connect_with_settings(uri: Uri, settings: ConnectSettings) -> DResult<Cli
     }
 
     // RFC 6455 Page 19, Point 2/3
-    if !has_upgrade && !has_connection {
+    if !has_upgrade || !has_connection {
         return Err(WError::BadUpgrade.into());
     }
 
@@ -127,6 +146,9 @@ pub fn connect_with_settings(uri: Uri, settings: ConnectSettings) -> DResult<Cli
     let decoder = ClientDecoder::with_limit(settings.max_websocket_frame);
     let reader = FramedRead::new(reader, decoder);
     let writer = FramedWrite::new(writer, ClientEncoder);
+
+    let reader = Box::new(reader);
+    let writer = Box::new(writer);
 
     Ok(Client { reader, writer })
 }
@@ -174,7 +196,7 @@ fn establish_plain(uri: Uri) -> DResult<Connection> {
     let addr = get_addr(&uri, 80)?;
     let stream = await!(TcpStream::connect(&addr))?;
     let (r, w) = stream.split();
-    Ok((BufReader::new(Box::new(r)), Box::new(w)))
+    Ok(Either::Left((BufReader::new(r), w)))
 }
 
 #[async]
@@ -184,7 +206,7 @@ fn establish_tls(uri: Uri) -> DResult<Connection> {
     let tls = TlsConnector::builder()?.build()?;
     let tls_stream = await!(tls.connect_async(domain(&uri), stream))?;
     let (r, w) = tls_stream.split();
-    Ok((BufReader::new(Box::new(r)), Box::new(w)))
+    Ok(Either::Right((BufReader::new(r), w)))
 }
 
 fn b64_equal(s: &str, b: &[u8]) -> bool {
@@ -227,10 +249,12 @@ fn hash_sec_key(key: &[u8; 16]) -> [u8; 20] {
     key_hasher.digest().bytes()
 }
 
-type Connection = (
-    BufReader<Box<AsyncRead + Send + 'static>>,
-    Box<AsyncWrite + Send + 'static>,
-);
+type PlainRead = BufReader<ReadHalf<TcpStream>>;
+type TlsRead = BufReader<ReadHalf<TlsStream<TcpStream>>>;
+type PlainWrite = WriteHalf<TcpStream>;
+type TlsWrite = WriteHalf<TlsStream<TcpStream>>;
+
+type Connection = Either<(PlainRead, PlainWrite), (TlsRead, TlsWrite)>;
 
 struct DisplayHeaders<'a>(&'a [String]);
 impl<'a> fmt::Display for DisplayHeaders<'a> {

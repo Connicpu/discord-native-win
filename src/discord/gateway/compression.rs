@@ -1,15 +1,11 @@
-use discord::gateway::websocket::{ClientDecoder, Error, Message};
+use discord::gateway::websocket::{Error, Message, Reader};
 use discord::gateway::GatewayMessage;
-
-use std::io::BufReader;
 
 use flate2::{self, FlushDecompress, Status};
 use futures::prelude::*;
-use tokio::io::AsyncRead;
-use tokio_io::codec::FramedRead;
 
 pub struct MessageDeflater {
-    pub reader: FramedRead<BufReader<Box<AsyncRead + Send>>, ClientDecoder>,
+    pub reader: Reader,
     pub zlib: flate2::Decompress,
 }
 

@@ -3,7 +3,7 @@ use std::fmt;
 
 use hyper;
 use hyper_tls;
-use serde_json;
+use serde_json as json;
 use discord::gateway::websocket;
 use dxgi::Error as DError;
 
@@ -11,11 +11,13 @@ use dxgi::Error as DError;
 pub enum Error {
     Api(ApiError),
     Io(io::Error),
-    Json(serde_json::Error),
+    Json(json::Error),
     Hyper(hyper::Error),
     Tls(hyper_tls::Error),
     Websocket(websocket::Error),
     Graphics(i32),
+    Timer(tokio::timer::Error),
+    FutureError,
 }
 
 impl fmt::Display for Error {
@@ -28,6 +30,8 @@ impl fmt::Display for Error {
             Error::Tls(err) => write!(fmt, "Tls error: {}", err),
             Error::Websocket(err) => write!(fmt, "WebSocket error: {}", err),
             Error::Graphics(hr) => write!(fmt, "Graphics error: {:x} {}", hr, DError(*hr)),
+            Error::Timer(err) => write!(fmt, "Timer error: {}", err),
+            Error::FutureError => write!(fmt, "Unspecified futures error"),
         }
     }
 }
@@ -69,9 +73,14 @@ impl From<hyper_tls::Error> for Error {
     }
 }
 
-
 impl From<websocket::Error> for Error {
     fn from(e: websocket::Error) -> Error {
         Error::Websocket(e)
+    }
+}
+
+impl From<tokio::timer::Error> for Error {
+    fn from(e: tokio::timer::Error) -> Error {
+        Error::Timer(e)
     }
 }

@@ -29,13 +29,13 @@ macro_rules! packet_payload {
     ($name:ident, event: $evt:expr) => {
         impl PacketData for $name {
             const OPCODE: u32 = 0;
-            const EVENT: Option<&'static str> = Some($evt);
+            const EVENT: &str = stringify!($evt);
         }
     };
     ($name:ident<$life:tt>, event: $evt:expr) => {
         impl<$life> PacketData for $name<$life> {
             const OPCODE: u32 = 0;
-            const EVENT: Option<&'static str> = Some($evt);
+            const EVENT: &str = stringify!($evt);
         }
     };
 }

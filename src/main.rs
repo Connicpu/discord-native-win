@@ -1,4 +1,5 @@
 #![feature(proc_macro, generators, entry_or_default, proc_macro_non_items)]
+#![feature(type_ascription, fnbox, extern_prelude, assoc_unix_epoch)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -18,6 +19,7 @@ extern crate direct3d11;
 extern crate directwrite;
 extern crate dotenv;
 extern crate dxgi;
+extern crate either;
 extern crate env_logger;
 extern crate erased_serde;
 extern crate flate2;
@@ -32,6 +34,7 @@ extern crate rand;
 extern crate serde;
 extern crate serde_json;
 extern crate sha1;
+extern crate spin;
 extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_tls;
@@ -44,13 +47,18 @@ pub mod state;
 mod demo;
 
 fn main() {
-    use logging::FutureLogExt;
     use discord::gateway::packets::*;
+    use logging::FutureLogExt;
 
     dotenv::dotenv().ok();
     logging::init();
 
-    println!("WOO Packet<Identify> IS {} BYTES", std::mem::size_of::<Packet<Identify>>());
+    println!(
+        "WOO Packet<Identify> IS {} BYTES",
+        std::mem::size_of::<Packet<Identify>>()
+    );
 
-    tokio::run(demo::naive_test().log_errors());
+    let future = demo::naive_test().log_errors();
+    println!("Demo future is {} bytes", std::mem::size_of_val(&future));
+    tokio::run(future);
 }

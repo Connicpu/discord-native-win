@@ -10,7 +10,11 @@ mod macros;
 //--------------------
 // Packet structs
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Serialize)]
+pub struct IgnoreData;
+packet_payload!(IgnoreData, op: 0, skip: true);
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Heartbeat(pub Option<i32>);
 packet_payload!(Heartbeat, op: 1);
 
@@ -32,6 +36,12 @@ pub struct UpdateStatus<'a> {
     pub status: Cow<'a, str>,
     pub afk: bool,
 }
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Hello {
+    pub heartbeat_interval: u64,
+}
+packet_payload!(Hello, op: 10);
 
 #[derive(Copy, Clone, Debug, Default, Serialize)]
 pub struct HeartbeatAck;
@@ -75,6 +85,24 @@ where
     pub event: Option<Cow<'static, str>>,
 }
 
+impl<T> Packet<T>
+where
+    T: PacketData,
+{
+    pub fn new(data: T) -> Packet<T> {
+        Packet {
+            opcode: T::OPCODE,
+            payload: data,
+            sequence: None,
+            event: if T::EVENT == "" {
+                None
+            } else {
+                Some(Cow::Borrowed(T::EVENT))
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(bound = "T: PacketData")]
 pub struct DataOnlyPacket<T>
@@ -101,7 +129,7 @@ pub struct PartialPacket<'a> {
 
 pub trait PacketData: Serialize + for<'de> Deserialize<'de> + Sized {
     const OPCODE: u32;
-    const EVENT: Option<&'static str> = None;
+    const EVENT: &'static str = "";
 
     fn skip_ser(&self) -> bool {
         false

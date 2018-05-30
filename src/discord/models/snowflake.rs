@@ -4,7 +4,6 @@ use std::fmt;
 use std::str;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
-use itoa;
 use serde::{de, ser};
 
 const TIMESTAMP_SHIFT: u64 = 22;
